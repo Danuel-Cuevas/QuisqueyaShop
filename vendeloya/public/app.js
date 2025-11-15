@@ -1,24 +1,9 @@
-// Configuration - Auto-detect environment
-const isLocal = window.location.hostname === 'localhost' || 
-                window.location.hostname === '127.0.0.1' || 
-                window.location.hostname === '' ||
-                (typeof window.isLocalEnv !== 'undefined' && window.isLocalEnv);
-
-// API URLs - Adapt based on environment
+// Configuration - Local Development
 const PROJECT_ID = 'vendeloya-2e40d';
 const REGION = 'us-central1';
-
-const API_BASE = isLocal 
-    ? `http://127.0.0.1:5001/${PROJECT_ID}/${REGION}/apiGateway`
-    : `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/apiGateway`;
-
-const AUTH_BASE = isLocal
-    ? `http://127.0.0.1:5001/${PROJECT_ID}/${REGION}/usersService`
-    : `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/usersService`;
-
-const FIREBASE_AUTH_URL = isLocal 
-    ? 'http://127.0.0.1:9099' 
-    : 'https://identitytoolkit.googleapis.com';
+const API_BASE = `http://127.0.0.1:5001/${PROJECT_ID}/${REGION}/apiGateway`;
+const AUTH_BASE = `http://127.0.0.1:5001/${PROJECT_ID}/${REGION}/usersService`;
+const FIREBASE_AUTH_URL = 'http://127.0.0.1:9099'; // Firebase Auth Emulator
 
 // State
 let currentUser = null;
@@ -31,6 +16,19 @@ let orders = [];
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     loadLocalCart(); // Load local cart if exists
+    
+    // Load products from cache first for instant display
+    const cachedProducts = localStorage.getItem('cachedProducts');
+    if (cachedProducts) {
+        try {
+            products = JSON.parse(cachedProducts);
+            renderProducts();
+        } catch (e) {
+            console.error('Error loading cached products:', e);
+        }
+    }
+    
+    // Then load from server to update
     loadProducts();
     loadAppSettings(); // Load app settings (logo, etc.)
     showSection('products');
@@ -56,11 +54,61 @@ async function checkAuth() {
     const user = localStorage.getItem('user');
     
     if (token && user) {
-        authToken = token;
-        currentUser = JSON.parse(user);
-        updateAuthUI();
-        loadCart();
-        loadOrders();
+        try {
+            // Wait for Firebase Auth to be ready
+            let auth = window.firebaseAuth;
+            if (!auth) {
+                // Wait a bit and try again
+                await new Promise(resolve => setTimeout(resolve, 200));
+                auth = window.firebaseAuth;
+            }
+            
+            if (auth) {
+                // Check if user is authenticated in Firebase Auth
+                const currentFirebaseUser = auth.currentUser;
+                
+                if (currentFirebaseUser) {
+                    // User is authenticated, get fresh token
+                    try {
+                        const freshToken = await currentFirebaseUser.getIdToken();
+                        authToken = freshToken;
+                        localStorage.setItem('authToken', freshToken);
+                    } catch (tokenError) {
+                        console.warn('Could not get fresh token, using stored token:', tokenError);
+                        authToken = token;
+                    }
+                    
+                    currentUser = JSON.parse(user);
+                    updateAuthUI();
+                    loadCart();
+                    loadOrders();
+                } else {
+                    // User not authenticated in Firebase Auth, but we have stored data
+                    // In emulator, this is normal - use stored data
+                    authToken = token;
+                    currentUser = JSON.parse(user);
+                    updateAuthUI();
+                    loadCart();
+                    loadOrders();
+                }
+            } else {
+                // Firebase Auth not ready yet, use stored data temporarily
+                authToken = token;
+                currentUser = JSON.parse(user);
+                updateAuthUI();
+                
+                // Wait a bit and try to refresh token
+                setTimeout(async () => {
+                    await checkAuth();
+                }, 500);
+            }
+        } catch (error) {
+            console.error('Error checking auth:', error);
+            // Don't clear auth data on error, just use stored data
+            authToken = token;
+            currentUser = JSON.parse(user);
+            updateAuthUI();
+        }
     }
 }
 
@@ -152,14 +200,20 @@ async function handleLogin(e) {
     const password = document.getElementById('login-password').value;
 
     try {
-        // Use Firebase Auth SDK
-        const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-        const auth = window.firebaseAuth;
-        
+        // Wait for Firebase Auth to be available
+        let auth = window.firebaseAuth;
         if (!auth) {
-            throw new Error('Firebase Auth no está inicializado');
+            // Wait a bit and try again
+            await new Promise(resolve => setTimeout(resolve, 100));
+            auth = window.firebaseAuth;
+            if (!auth) {
+                throw new Error('Firebase Auth no está inicializado. Por favor, recarga la página.');
+            }
         }
 
+        // Use Firebase Auth SDK
+        const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        
         // Sign in with email and password
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
@@ -247,7 +301,6 @@ async function logout() {
             console.warn('Error signing out from Firebase:', error);
         }
     }
-    
     // Clear all user data from memory
     currentUser = null;
     authToken = null;
@@ -359,57 +412,56 @@ function hideLogin() {
 // Products
 async function loadProducts() {
     try {
-        console.log('Loading products from:', `${API_BASE}/catalog/products`);
         const response = await fetch(`${API_BASE}/catalog/products`);
-        
-        console.log('Response status:', response.status, response.statusText);
-        
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Error response:', errorText);
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+            throw new Error(`HTTP ${response.status}`);
         }
-        
         const data = await response.json();
-        console.log('Products data received:', data);
-        console.log('Data type:', typeof data, 'Is array:', Array.isArray(data));
+        products = Array.isArray(data) ? data : [];
         
-        // Handle different response formats
-        if (Array.isArray(data)) {
-            products = data;
-        } else if (data && Array.isArray(data.products)) {
-            products = data.products;
-        } else if (data && Array.isArray(data.data)) {
-            products = data.data;
-        } else if (data && typeof data === 'object') {
-            // If it's a single product object, wrap it in an array
-            products = [data];
-        } else {
-            products = [];
-        }
-        
-        console.log('Final products array:', products);
-        console.log('Products count:', products.length);
-        
-        // Only show toast if array is truly empty (not just loading)
         if (products.length === 0) {
+            // Try to load from cache if database is empty
+            const cachedProducts = localStorage.getItem('cachedProducts');
+            if (cachedProducts) {
+                try {
+                    products = JSON.parse(cachedProducts);
+                    renderProducts();
+                    showToast('No hay productos nuevos. Mostrando productos en caché.', 'info');
+                    return;
+                } catch (e) {
+                    console.error('Error parsing cached products:', e);
+                }
+            }
+            // Database is empty - show message but don't show sample products
             renderProducts();
-            // Don't show error toast for empty state - just render empty message
+            showToast('No hay productos en la base de datos. Inicia sesión como admin para crear productos.', 'error');
             return;
         }
         
+        // Save to localStorage for persistence
+        localStorage.setItem('cachedProducts', JSON.stringify(products));
+        localStorage.setItem('cachedProductsTimestamp', Date.now().toString());
+        
         renderProducts();
-        console.log('Products rendered successfully');
+        // Products loaded successfully
     } catch (error) {
         console.error('Error loading products:', error);
-        console.error('Error details:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-        });
+        // Don't show sample products - show error message instead
         products = [];
         renderProducts();
-        showToast('Error al cargar productos: ' + error.message, 'error');
+        // Try to load from cache if available
+        const cachedProducts = localStorage.getItem('cachedProducts');
+        if (cachedProducts) {
+            try {
+                products = JSON.parse(cachedProducts);
+                renderProducts();
+                showToast('Productos cargados desde caché. Verifica que los emuladores estén corriendo.', 'warning');
+            } catch (e) {
+                showToast('Error al cargar productos. Verifica que los emuladores estén corriendo.', 'error');
+            }
+        } else {
+            showToast('Error al cargar productos. Verifica que los emuladores estén corriendo.', 'error');
+        }
     }
 }
 
@@ -462,16 +514,8 @@ async function createSampleProducts() {
 function renderProducts() {
     const grid = document.getElementById('products-grid');
     
-    if (!grid) {
-        console.warn('Products grid element not found');
-        return;
-    }
-    
     if (!products || products.length === 0) {
-        const emptyMessage = currentUser && currentUser.role === 'admin'
-            ? '<div class="empty-state">No hay productos disponibles. <button class="btn btn-primary" onclick="showProductModal()" style="margin-top: 1rem;">Crear Producto</button></div>'
-            : '<div class="empty-state">No hay productos disponibles en este momento.</div>';
-        grid.innerHTML = emptyMessage;
+        grid.innerHTML = '<div class="empty-state">No hay productos disponibles. Inicia sesión como admin para crear productos.</div>';
         return;
     }
     
@@ -503,6 +547,31 @@ function getProductEmoji(category) {
     return '';
 }
 
+// Helper function to get a fresh auth token
+async function getFreshAuthToken() {
+    if (!window.firebaseAuth || !currentUser) {
+        return null;
+    }
+    
+    try {
+        const auth = window.firebaseAuth;
+        
+        // Get current user from Firebase Auth
+        const currentFirebaseUser = auth.currentUser;
+        if (currentFirebaseUser) {
+            // Get fresh token (force refresh)
+            const freshToken = await currentFirebaseUser.getIdToken(true);
+            authToken = freshToken;
+            localStorage.setItem('authToken', freshToken);
+            return freshToken;
+        }
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+    }
+    
+    return authToken;
+}
+
 // Cart
 async function addToCart(productId) {
     const product = products.find(p => p.id === productId);
@@ -519,11 +588,14 @@ async function addToCart(productId) {
     }
     
     try {
+        // Try to get a fresh token before making the request
+        const token = await getFreshAuthToken() || authToken;
+        
         const response = await fetch(`${API_BASE}/cart/user/${currentUser.uid}/items`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 productId: productId,
@@ -534,16 +606,50 @@ async function addToCart(productId) {
         if (response.ok) {
             showToast('Producto agregado al carrito', 'success');
             loadCart();
+        } else if (response.status === 401) {
+            // Token expired or invalid - refresh and try once more, or use local cart
+            console.warn('Token expired, refreshing...');
+            const freshToken = await getFreshAuthToken();
+            
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/cart/user/${currentUser.uid}/items`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${freshToken}`
+                    },
+                    body: JSON.stringify({
+                        productId: productId,
+                        quantity: 1
+                    })
+                });
+                
+                if (retryResponse.ok) {
+                    showToast('Producto agregado al carrito', 'success');
+                    loadCart();
+                } else {
+                    // Still failed, use local cart silently
+                    addToLocalCart(product);
+                    console.log('Added to local cart after token refresh failed');
+                }
+            } else {
+                // Could not refresh token, use local cart silently
+                addToLocalCart(product);
+                console.log('Added to local cart - could not refresh token');
+            }
         } else {
             const data = await response.json().catch(() => ({}));
-            showToast(data.error || 'Error al agregar producto', 'error');
+            // Only show error for non-401 errors
+            if (response.status !== 401) {
+                showToast(data.error || 'Error al agregar producto', 'error');
+            }
             // Fallback: add to local cart
             addToLocalCart(product);
         }
     } catch (error) {
         console.error('Error adding to cart:', error);
-        showToast('Error de conexión. Agregado al carrito local.', 'error');
-        // Fallback: add to local cart
+        // Don't show error message for network errors, just add to local cart
         addToLocalCart(product);
     }
 }
@@ -622,11 +728,35 @@ async function loadCart() {
                     renderCart();
                     // Save merged cart to localStorage
                     localStorage.setItem('localCart', JSON.stringify(cart));
+                } else if (serverCart && (!serverCart.items || serverCart.items.length === 0)) {
+                    // Server cart is empty, keep local cart if exists
+                    if (cart && cart.items && cart.items.length > 0) {
+                        renderCart();
+                    }
+                }
+            } else {
+                // Handle error response
+                const errorData = await response.json().catch(() => ({}));
+                if (response.status === 401 || response.status === 403) {
+                    console.error('Invalid token, clearing auth data');
+                    // Token is invalid, clear auth data
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('user');
+                    currentUser = null;
+                    authToken = null;
+                    updateAuthUI();
+                    showToast('Sesión expirada. Por favor inicia sesión nuevamente.', 'error');
+                } else if (response.status === 404) {
+                    // Cart doesn't exist on server, that's okay - keep local cart
+                    console.log('Cart not found on server, using local cart');
+                } else {
+                    console.error('Error loading cart:', errorData);
+                    // Keep using local cart, don't show error to user
                 }
             }
         } catch (error) {
             console.error('Error loading cart from server:', error);
-            // Keep using local cart
+            // Keep using local cart, don't show error to user unless it's critical
         }
     }
 }
@@ -1290,5 +1420,15 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
+// Expose all functions used in HTML onclick/onsubmit handlers
 window.showToast = showToast;
+window.showSection = showSection;
+window.showLogin = showLogin;
+window.showRegister = showRegister;
+window.hideLogin = hideLogin;
+window.logout = logout;
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
+window.checkout = checkout;
+window.addToCart = addToCart;
 

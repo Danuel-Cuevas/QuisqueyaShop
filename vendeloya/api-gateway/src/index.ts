@@ -217,19 +217,37 @@ app.use('/audit', verifyToken, async (req: Request, res: Response): Promise<void
 
 app.use('/reports', verifyToken, async (req: Request, res: Response): Promise<void> => {
   try {
-    const response = await axios({
+    // Get service path (remove /reports prefix if present)
+    const servicePath = req.path.startsWith('/') ? req.path : `/${req.path}`;
+    
+    // Only send body for POST, PUT, PATCH requests
+    const requestConfig: any = {
       method: req.method,
-      url: `${SERVICES.reports}${req.path}`,
-      data: req.body,
+      url: `${SERVICES.reports}${servicePath}`,
       headers: {
         'Authorization': req.headers.authorization || '',
         'Content-Type': 'application/json',
       },
       timeout: 15000,
-    });
+    };
+    
+    // Only include data for methods that support body
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
+      requestConfig.data = req.body;
+    }
+    
+    // Include query parameters
+    if (Object.keys(req.query).length > 0) {
+      requestConfig.params = req.query;
+    }
+    
+    const response = await axios(requestConfig);
     res.json(response.data);
   } catch (error: any) {
-    res.status(error.response?.status || 500).json({ error: error.message });
+    console.error('Reports service error:', error.message, error.response?.status, error.response?.data);
+    res.status(error.response?.status || 500).json({ 
+      error: error.response?.data?.error || error.message 
+    });
   }
 });
 

@@ -397,20 +397,59 @@ async function loadAdminUsers() {
         return;
     }
     
+    const list = document.getElementById('admin-users-list');
+    if (list) {
+        list.innerHTML = '<div class="loading">Cargando usuarios...</div>';
+    }
+    
     try {
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            throw new Error('No hay token de autenticación');
+        }
+        
         const response = await fetch(`${API_BASE}/users/users`, {
             headers: {
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             }
         });
         
-        if (!response.ok) throw new Error('Failed to load users');
+        if (response.status === 401) {
+            // Token expired, try to refresh
+            const freshToken = await getFreshAuthToken();
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/users/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${freshToken}`
+                    }
+                });
+                
+                if (retryResponse.ok) {
+                    const users = await retryResponse.json();
+                    renderAdminUsers(users);
+                    return;
+                }
+            }
+            throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Error HTTP ${response.status}`);
+        }
         
         const users = await response.json();
         renderAdminUsers(users);
     } catch (error) {
         console.error('Error loading users:', error);
-        showToast('Error al cargar usuarios', 'error');
+        const errorMessage = error.message || 'Error al cargar usuarios';
+        showToast(errorMessage, 'error');
+        if (list) {
+            list.innerHTML = `<div class="empty-state">${errorMessage}</div>`;
+        }
     }
 }
 
@@ -446,24 +485,55 @@ async function changeUserRole(uid, newRole) {
     }
     
     try {
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            showToast('No hay token de autenticación', 'error');
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/users/role/${uid}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ role: newRole })
         });
+        
+        if (response.status === 401) {
+            // Token expired, try to refresh
+            const freshToken = await getFreshAuthToken();
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/users/role/${uid}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${freshToken}`
+                    },
+                    body: JSON.stringify({ role: newRole })
+                });
+                
+                if (retryResponse.ok) {
+                    showToast(`Rol actualizado a ${newRole}`, 'success');
+                    await loadAdminUsers();
+                    return;
+                }
+            }
+            throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+        }
         
         if (response.ok) {
             showToast(`Rol actualizado a ${newRole}`, 'success');
             await loadAdminUsers();
         } else {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({ error: 'Error desconocido' }));
             showToast(error.error || 'Error al cambiar rol', 'error');
         }
     } catch (error) {
-        showToast('Error de conexión', 'error');
+        showToast(error.message || 'Error de conexión', 'error');
         console.error('Error changing role:', error);
     }
 }
@@ -475,21 +545,59 @@ async function loadAdminOrders() {
         return;
     }
     
+    const list = document.getElementById('admin-orders-list');
+    if (list) {
+        list.innerHTML = '<div class="loading">Cargando pedidos...</div>';
+    }
+    
     try {
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            throw new Error('No hay token de autenticación');
+        }
+        
         const response = await fetch(`${API_BASE}/orders`, {
             headers: {
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             }
         });
         
-        if (!response.ok) throw new Error('Failed to load orders');
+        if (response.status === 401) {
+            // Token expired, try to refresh
+            const freshToken = await getFreshAuthToken();
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/orders`, {
+                    headers: {
+                        'Authorization': `Bearer ${freshToken}`
+                    }
+                });
+                
+                if (retryResponse.ok) {
+                    const orders = await retryResponse.json();
+                    renderAdminOrders(orders);
+                    return;
+                }
+            }
+            throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Error HTTP ${response.status}`);
+        }
         
         const orders = await response.json();
         renderAdminOrders(orders);
     } catch (error) {
         console.error('Error loading orders:', error);
-        showToast('Error al cargar pedidos', 'error');
-        document.getElementById('admin-orders-list').innerHTML = '<div class="empty-state">Error al cargar pedidos</div>';
+        const errorMessage = error.message || 'Error al cargar pedidos';
+        showToast(errorMessage, 'error');
+        if (list) {
+            list.innerHTML = `<div class="empty-state">${errorMessage}</div>`;
+        }
     }
 }
 
@@ -570,14 +678,45 @@ async function cancelOrder(orderId) {
     }
     
     try {
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            showToast('No hay token de autenticación', 'error');
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/orders/${orderId}/status`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ status: 'cancelled' })
         });
+        
+        if (response.status === 401) {
+            // Token expired, try to refresh
+            const freshToken = await getFreshAuthToken();
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${freshToken}`
+                    },
+                    body: JSON.stringify({ status: 'cancelled' })
+                });
+                
+                if (retryResponse.ok) {
+                    showToast('Pedido cancelado exitosamente', 'success');
+                    await loadAdminOrders();
+                    return;
+                }
+            }
+            throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+        }
         
         if (response.ok) {
             showToast('Pedido cancelado exitosamente', 'success');
@@ -587,7 +726,7 @@ async function cancelOrder(orderId) {
             showToast(error.error || 'Error al cancelar pedido', 'error');
         }
     } catch (error) {
-        showToast('Error de conexión: ' + error.message, 'error');
+        showToast(error.message || 'Error de conexión: ' + error.message, 'error');
         console.error('Error cancelling order:', error);
     }
 }
@@ -599,14 +738,51 @@ async function updateOrderStatus(orderId, newStatus) {
     }
     
     try {
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            showToast('No hay token de autenticación', 'error');
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/orders/${orderId}/status`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ status: newStatus })
         });
+        
+        if (response.status === 401) {
+            // Token expired, try to refresh
+            const freshToken = await getFreshAuthToken();
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${freshToken}`
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (retryResponse.ok) {
+                    const statusLabels = {
+                        'confirmed': 'confirmado',
+                        'paid': 'pagado',
+                        'shipped': 'enviado',
+                        'delivered': 'entregado'
+                    };
+                    showToast(`Pedido ${statusLabels[newStatus] || 'actualizado'} exitosamente`, 'success');
+                    await loadAdminOrders();
+                    return;
+                }
+            }
+            throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+        }
         
         if (response.ok) {
             const statusLabels = {
@@ -622,7 +798,7 @@ async function updateOrderStatus(orderId, newStatus) {
             showToast(error.error || 'Error al actualizar estado', 'error');
         }
     } catch (error) {
-        showToast('Error de conexión: ' + error.message, 'error');
+        showToast(error.message || 'Error de conexión: ' + error.message, 'error');
         console.error('Error updating order status:', error);
     }
 }
@@ -638,24 +814,78 @@ async function loadAdminReports() {
         return;
     }
     
+    const list = document.getElementById('admin-reports-list');
+    if (list) {
+        list.innerHTML = '<div class="loading">Cargando reportes...</div>';
+    }
+    
     try {
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            throw new Error('No hay token de autenticación');
+        }
+        
         const response = await fetch(`${API_BASE}/reports`, {
             headers: {
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             }
         });
         
-        if (!response.ok) throw new Error('Failed to load reports');
+        if (response.status === 401) {
+            // Token expired, try to refresh
+            const freshToken = await getFreshAuthToken();
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/reports`, {
+                    headers: {
+                        'Authorization': `Bearer ${freshToken}`
+                    }
+                });
+                
+                if (retryResponse.ok) {
+                    const reports = await retryResponse.json();
+                    if (reports && reports.length > 0) {
+                        renderAdminReports(reports);
+                    } else {
+                        if (list) {
+                            list.innerHTML = '<div class="empty-state">No hay reportes generados. Genera uno nuevo.</div>';
+                        }
+                    }
+                    return;
+                }
+            }
+            throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.error || `Error HTTP ${response.status}`;
+            console.error('Error loading reports:', errorMessage, response.status);
+            
+            // If 400, it might be a routing issue - try to show helpful message
+            if (response.status === 400) {
+                throw new Error('Error en la petición. Verifica que el servicio de reportes esté disponible.');
+            }
+            throw new Error(errorMessage);
+        }
         
         const reports = await response.json();
         if (reports && reports.length > 0) {
             renderAdminReports(reports);
         } else {
-            document.getElementById('admin-reports-list').innerHTML = '<div class="empty-state">No hay reportes generados. Genera uno nuevo.</div>';
+            if (list) {
+                list.innerHTML = '<div class="empty-state">No hay reportes generados. Genera uno nuevo.</div>';
+            }
         }
     } catch (error) {
         console.error('Error loading reports:', error);
-        document.getElementById('admin-reports-list').innerHTML = '<div class="empty-state">Error al cargar reportes. Verifica que los emuladores estén corriendo.</div>';
+        const errorMessage = error.message || 'Error al cargar reportes';
+        if (list) {
+            list.innerHTML = `<div class="empty-state">${errorMessage}</div>`;
+        }
+        // Don't show toast for initial load errors, only for user actions
     }
 }
 
@@ -791,11 +1021,19 @@ async function generateReport(e) {
             return;
         }
         
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            showToast('No hay token de autenticación', 'error');
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/reports${endpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(body)
         });
@@ -826,11 +1064,19 @@ async function generateInventoryReport() {
     try {
         showToast('Generando reporte de inventario...', 'info');
         
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            showToast('No hay token de autenticación', 'error');
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/reports/inventory`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({})
         });
@@ -859,11 +1105,19 @@ async function generateProductsReport() {
     try {
         showToast('Generando reporte de productos...', 'info');
         
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            showToast('No hay token de autenticación', 'error');
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/reports/products`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({})
         });
@@ -890,18 +1144,48 @@ async function viewReport(reportId) {
     }
     
     try {
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            throw new Error('No hay token de autenticación');
+        }
+        
         const response = await fetch(`${API_BASE}/reports/${reportId}`, {
             headers: {
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             }
         });
         
-        if (!response.ok) throw new Error('Failed to load report');
+        if (response.status === 401) {
+            // Token expired, try to refresh
+            const freshToken = await getFreshAuthToken();
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/reports/${reportId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${freshToken}`
+                    }
+                });
+                
+                if (retryResponse.ok) {
+                    const report = await retryResponse.json();
+                    renderReportView(report);
+                    return;
+                }
+            }
+            throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Error HTTP ${response.status}`);
+        }
         
         const report = await response.json();
         renderReportView(report);
     } catch (error) {
-        showToast('Error al cargar reporte', 'error');
+        showToast(error.message || 'Error al cargar reporte', 'error');
         console.error('Error loading report:', error);
     }
 }
@@ -1128,12 +1412,41 @@ async function deleteReport(reportId) {
     }
     
     try {
+        // Get fresh token before making request
+        const token = await getFreshAuthToken() || authToken;
+        
+        if (!token) {
+            showToast('No hay token de autenticación', 'error');
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/reports/${reportId}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             }
         });
+        
+        if (response.status === 401) {
+            // Token expired, try to refresh
+            const freshToken = await getFreshAuthToken();
+            if (freshToken) {
+                // Retry with fresh token
+                const retryResponse = await fetch(`${API_BASE}/reports/${reportId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${freshToken}`
+                    }
+                });
+                
+                if (retryResponse.ok) {
+                    showToast('Reporte eliminado exitosamente', 'success');
+                    await loadAdminReports();
+                    return;
+                }
+            }
+            throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+        }
         
         if (response.ok) {
             showToast('Reporte eliminado exitosamente', 'success');
@@ -1143,7 +1456,7 @@ async function deleteReport(reportId) {
             showToast(error.error || 'Error al eliminar reporte', 'error');
         }
     } catch (error) {
-        showToast('Error de conexión: ' + error.message, 'error');
+        showToast(error.message || 'Error de conexión: ' + error.message, 'error');
         console.error('Error deleting report:', error);
     }
 }

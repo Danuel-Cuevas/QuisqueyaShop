@@ -10,14 +10,13 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "build:all": "./scripts/build-all.sh",
-    "seed": "node scripts/seed-database.js",
+    "init": "node scripts/setup-database.js",
     "start": "firebase emulators:start",
     "start:local": "powershell -ExecutionPolicy Bypass -File scripts/start-local.ps1",
-    "stop": "powershell -ExecutionPolicy Bypass -File scripts/stop.ps1",
+    "create-admin": "node scripts/create-admin.js",
     "test": "npm run test --workspaces",
     "lint": "eslint . --ext .ts",
-    "deploy": "firebase deploy",
-    "check-products": "node scripts/check-products.js"
+    "deploy": "firebase deploy"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -366,72 +366,57 @@
         import { getFirestore, connectFirestoreEmulator } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getStorage, connectStorageEmulator, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
         
-        // Detect if running in local development
-        const isLocal = window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1' || 
-                       window.location.hostname === '';
-        
-        // Firebase configuration - Complete config for production
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCnLCL6XZhhjgovSHMUyRler0abGc9CF0Q",
             authDomain: "vendeloya-2e40d.firebaseapp.com",
+            databaseURL: "https://vendeloya-2e40d-default-rtdb.firebaseio.com",
             projectId: "vendeloya-2e40d",
             storageBucket: "vendeloya-2e40d.firebasestorage.app",
             messagingSenderId: "419170630464",
-            appId: "1:419170630464:web:1adb04a09cfbc7a0bc58a5"
+            appId: "1:419170630464:web:f6f379ce03f7f207bc58a5",
+            measurementId: "G-HB06TDDCWW"
         };
         
         // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
-        
-        // Connect to emulators only in local development
-        if (isLocal) {
-            try {
-                // Connect Auth emulator (only if not already connected)
+        try {
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            const storage = getStorage(app);
+            
+            // Connect to emulators (only in local development)
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 try {
                     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-                } catch (authError) {
-                    // Already connected or error, continue
-                    console.log('Auth emulator connection:', authError.message || 'already connected');
-                }
-                
-                // Connect Firestore emulator (only if not already connected)
-                try {
                     connectFirestoreEmulator(db, '127.0.0.1', 8080);
-                } catch (firestoreError) {
-                    // Already connected or error, continue
-                    console.log('Firestore emulator connection:', firestoreError.message || 'already connected');
-                }
-                
-                // Connect Storage emulator (only if not already connected)
-                try {
                     connectStorageEmulator(storage, '127.0.0.1', 9199);
-                } catch (storageError) {
-                    // Already connected or error, continue
-                    console.log('Storage emulator connection:', storageError.message || 'already connected');
+                    console.log('✅ Connected to Firebase Emulators');
+                } catch (e) {
+                    console.warn('⚠️ Emulators already connected or error:', e.message);
                 }
-            } catch (error) {
-                console.warn('Emulator connection warning:', error);
             }
+            
+            // Storage helper function
+            window.firebaseStorage = {
+                upload: async (file, path) => {
+                    const storageRef = ref(storage, path);
+                    await uploadBytes(storageRef, file);
+                    return await getDownloadURL(storageRef);
+                }
+            };
+            
+            // Expose Firebase services globally
+            window.firebaseAuth = auth;
+            window.firebaseDb = db;
+            window.firebaseStorageService = storage;
+            window.firebaseApp = app;
+            
+            console.log('✅ Firebase initialized successfully');
+        } catch (error) {
+            console.error('❌ Error initializing Firebase:', error);
+            alert('Error al inicializar Firebase. Por favor, recarga la página.');
         }
-        
-        // Storage helper function
-        window.firebaseStorage = {
-            upload: async (file, path) => {
-                const storageRef = ref(storage, path);
-                await uploadBytes(storageRef, file);
-                return await getDownloadURL(storageRef);
-            }
-        };
-        
-        // Expose Firebase services globally
-        window.firebaseAuth = auth;
-        window.firebaseDb = db;
-        window.firebaseStorageService = storage;
-        window.isLocalEnv = isLocal;
     </script>
     <script src="app.js"></script>
     <script src="admin.js"></script>

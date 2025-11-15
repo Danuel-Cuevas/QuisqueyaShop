@@ -248,20 +248,34 @@ app.use('/audit', verifyToken, async (req, res) => {
 });
 app.use('/reports', verifyToken, async (req, res) => {
     try {
-        const response = await (0, axios_1.default)({
+        // Get service path (remove /reports prefix if present)
+        const servicePath = req.path.startsWith('/') ? req.path : `/${req.path}`;
+        // Only send body for POST, PUT, PATCH requests
+        const requestConfig = {
             method: req.method,
-            url: `${SERVICES.reports}${req.path}`,
-            data: req.body,
+            url: `${SERVICES.reports}${servicePath}`,
             headers: {
                 'Authorization': req.headers.authorization || '',
                 'Content-Type': 'application/json',
             },
             timeout: 15000,
-        });
+        };
+        // Only include data for methods that support body
+        if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
+            requestConfig.data = req.body;
+        }
+        // Include query parameters
+        if (Object.keys(req.query).length > 0) {
+            requestConfig.params = req.query;
+        }
+        const response = await (0, axios_1.default)(requestConfig);
         res.json(response.data);
     }
     catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
+        console.error('Reports service error:', error.message, error.response?.status, error.response?.data);
+        res.status(error.response?.status || 500).json({
+            error: error.response?.data?.error || error.message
+        });
     }
 });
 exports.apiGateway = functions.https.onRequest(app);

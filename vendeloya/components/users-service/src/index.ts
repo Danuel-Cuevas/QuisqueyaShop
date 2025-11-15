@@ -203,6 +203,82 @@ app.get('/users', verifyToken, async (req: Request, res: Response): Promise<void
   }
 });
 
+// Create admin user (for local development only)
+app.post('/create-admin', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password, displayName } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email and password are required' });
+      return;
+    }
+
+    // Check if user already exists
+    let userRecord;
+    try {
+      const existingUser = await admin.auth().getUserByEmail(email);
+      userRecord = existingUser;
+      
+      // Update existing user to admin
+      await admin.auth().setCustomUserClaims(userRecord.uid, { role: 'admin' });
+      await db.collection('users').doc(userRecord.uid).update({
+        role: 'admin',
+        displayName: displayName || userRecord.displayName || 'Administrador',
+        updatedAt: new Date().toISOString(),
+      });
+      
+      res.status(200).json({
+        success: true,
+        uid: userRecord.uid,
+        email: userRecord.email,
+        displayName: displayName || userRecord.displayName || 'Administrador',
+        role: 'admin',
+        message: 'Existing user updated to admin'
+      });
+      return;
+    } catch (error: any) {
+      // User doesn't exist, create new one
+      if (error.code !== 'auth/user-not-found') {
+        throw error;
+      }
+    }
+
+    // Create new admin user
+    userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: displayName || 'Administrador',
+      emailVerified: true
+    });
+
+    // Set admin role
+    await admin.auth().setCustomUserClaims(userRecord.uid, { role: 'admin' });
+
+    // Create user profile in Firestore
+    const userProfile: UserProfile = {
+      uid: userRecord.uid,
+      email: userRecord.email!,
+      displayName: displayName || 'Administrador',
+      role: 'admin',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await db.collection('users').doc(userRecord.uid).set(userProfile);
+
+    res.status(201).json({
+      success: true,
+      uid: userRecord.uid,
+      email: userRecord.email,
+      displayName: userProfile.displayName,
+      role: userProfile.role,
+      message: 'Admin user created successfully'
+    });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Delete user
 app.delete('/:uid', verifyToken, async (req: Request, res: Response): Promise<void> => {
   try {

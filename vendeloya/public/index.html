@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuisqueyaShop - E-commerce</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <h1 class="logo" id="app-logo">
+                        <img id="logo-image" src="" alt="QuisqueyaShop" style="max-height: 40px; margin-right: 0.5rem; display: none;">
+                        <span id="logo-text">QuisqueyaShop</span>
+                    </h1>
+                    <nav class="nav">
+                        <button class="nav-btn" onclick="showSection('products')">Productos</button>
+                        <button class="nav-btn" onclick="showSection('cart')">Carrito <span id="cart-count" class="badge">0</span></button>
+                        <button class="nav-btn" onclick="showSection('orders')">Mis Pedidos</button>
+                        <button id="profile-btn" class="nav-btn" onclick="showSection('profile')" style="display: none;">Mi Perfil</button>
+                        <button id="admin-btn" class="nav-btn" onclick="showSection('admin')" style="display: none;">Configuración</button>
+                        <div id="auth-section">
+                            <button id="login-btn" class="btn btn-primary" onclick="showLogin()">Iniciar Sesión</button>
+                            <div id="user-info" style="display: none; align-items: center; gap: 0.75rem;">
+                                <div id="user-avatar" style="width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: var(--bg); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <img id="user-avatar-img" src="" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                                    <span id="user-avatar-placeholder" style="font-size: 1.2rem; color: var(--text-light);">U</span>
+                                </div>
+                                <span id="user-name" style="font-weight: 500;"></span>
+                                <button class="btn btn-secondary" onclick="logout()">Salir</button>
+                            </div>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <div class="container">
+                <!-- Login Section -->
+                <section id="login-section" class="section" style="display: none;">
+                    <div class="login-card">
+                        <h2>Iniciar Sesión</h2>
+                        <form id="login-form" onsubmit="handleLogin(event)">
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="login-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña</label>
+                                <input type="password" id="login-password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                        </form>
+                        <p class="text-center">
+                            <a href="#" onclick="showRegister()">¿No tienes cuenta? Regístrate</a>
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Register Section -->
+                <section id="register-section" class="section" style="display: none;">
+                    <div class="login-card">
+                        <h2>Registrarse</h2>
+                        <form id="register-form" onsubmit="handleRegister(event)">
+                            <div class="form-group">
+                                <label>Nombre</label>
+                                <input type="text" id="register-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="register-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña</label>
+                                <input type="password" id="register-password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Registrarse</button>
+                        </form>
+                        <p class="text-center">
+                            <a href="#" onclick="showLogin()">¿Ya tienes cuenta? Inicia sesión</a>
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Products Section -->
+                <section id="products-section" class="section">
+                    <h2>Catálogo de Productos</h2>
+                    <div id="products-grid" class="products-grid">
+                        <div class="loading">Cargando productos...</div>
+                    </div>
+                </section>
+
+                <!-- Cart Section -->
+                <section id="cart-section" class="section" style="display: none;">
+                    <h2>Mi Carrito</h2>
+                    <div id="cart-items" class="cart-items">
+                        <div class="empty-state">Tu carrito está vacío</div>
+                    </div>
+                    <div id="cart-summary" class="cart-summary" style="display: none;">
+                        <div class="summary-row">
+                            <span>Total:</span>
+                            <strong id="cart-total">$0.00</strong>
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="checkout()">Comprar (Simulado)</button>
+                    </div>
+                </section>
+
+                <!-- Orders Section -->
+                <section id="orders-section" class="section" style="display: none;">
+                    <h2>Mis Pedidos</h2>
+                    <div id="orders-list" class="orders-list">
+                        <div class="empty-state">No tienes pedidos aún</div>
+                    </div>
+                </section>
+
+                <!-- Profile Section -->
+                <section id="profile-section" class="section" style="display: none;">
+                    <h2>Mi Perfil</h2>
+                    <div class="profile-container">
+                        <div class="profile-card">
+                            <form id="profile-form" onsubmit="updateProfile(event)">
+                                <div class="form-group">
+                                    <label>Foto de Perfil</label>
+                                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                        <div id="profile-photo-preview" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--border); overflow: hidden; background: var(--bg); display: flex; align-items: center; justify-content: center;">
+                                            <img id="profile-photo-img" src="" alt="Foto de perfil" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                                            <span id="profile-photo-placeholder" style="font-size: 2rem; color: var(--text-light);">U</span>
+                                        </div>
+                                        <div>
+                                            <input type="file" id="profile-photo-input" accept="image/*" style="display: none;" onchange="handleProfilePhotoUpload(event)">
+                                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('profile-photo-input').click()">Cambiar Foto</button>
+                                            <button type="button" class="btn btn-danger" onclick="removeProfilePhoto()" style="margin-left: 0.5rem; display: none;" id="remove-photo-btn">Eliminar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nombre de Usuario</label>
+                                    <input type="text" id="profile-display-name" placeholder="Tu nombre" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" id="profile-email" disabled>
+                                    <small style="color: var(--text-light); font-size: 0.875rem;">El email no se puede cambiar</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Rol</label>
+                                    <input type="text" id="profile-role" disabled>
+                                </div>
+                                <div class="form-group">
+                                    <label>Fecha de Registro</label>
+                                    <input type="text" id="profile-created-at" disabled>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                                    <button type="button" class="btn btn-secondary" onclick="loadProfile()">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Admin Section -->
+                <section id="admin-section" class="section" style="display: none;">
+                    <h2>Panel de Administración</h2>
+                    
+                    <!-- Admin Tabs -->
+                    <div class="admin-tabs">
+                        <button class="tab-btn active" onclick="showAdminTab('products')">Productos</button>
+                        <button class="tab-btn" onclick="showAdminTab('users')">Usuarios</button>
+                        <button class="tab-btn" onclick="showAdminTab('orders')">Pedidos</button>
+                        <button class="tab-btn" onclick="showAdminTab('reports')">Reportes</button>
+                    </div>
+
+                    <!-- Products Admin Tab -->
+                    <div id="admin-products" class="admin-tab-content">
+                        <div class="admin-header">
+                            <h3>Gestión de Productos</h3>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-secondary" onclick="createSampleProductsFromAdmin()">Crear Productos de Ejemplo</button>
+                                <button class="btn btn-primary" onclick="showProductModal()">+ Nuevo Producto</button>
+                            </div>
+                        </div>
+                        <div id="admin-products-list" class="admin-list">
+                            <div class="loading">Cargando productos...</div>
+                        </div>
+                    </div>
+
+                    <!-- Users Admin Tab -->
+                    <div id="admin-users" class="admin-tab-content" style="display: none;">
+                        <div class="admin-header">
+                            <h3>Gestión de Usuarios</h3>
+                        </div>
+                        <div id="admin-users-list" class="admin-list">
+                            <div class="loading">Cargando usuarios...</div>
+                        </div>
+                    </div>
+
+                    <!-- Orders Admin Tab -->
+                    <div id="admin-orders" class="admin-tab-content" style="display: none;">
+                        <div class="admin-header">
+                            <h3>Todos los Pedidos</h3>
+                        </div>
+                        <div id="admin-orders-list" class="admin-list">
+                            <div class="loading">Cargando pedidos...</div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Admin Tab -->
+                    <div id="admin-settings" class="admin-tab-content" style="display: none;">
+                        <div class="admin-header">
+                            <h3>Configuración de la Aplicación</h3>
+                        </div>
+                        <div class="admin-list">
+                            <div class="admin-item">
+                                <div class="admin-item-info">
+                                    <div class="admin-item-title">Logo de la Aplicación</div>
+                                    <div class="admin-item-details">
+                                        Cambia el logo que aparece en el header de la aplicación
+                                    </div>
+                                </div>
+                                <div class="admin-item-actions">
+                                    <input type="file" id="logo-file-input" accept="image/*" style="display: none;" onchange="handleLogoUpload(event)">
+                                    <button class="btn btn-primary" onclick="document.getElementById('logo-file-input').click()">Cambiar Logo</button>
+                                </div>
+                            </div>
+                            <div id="logo-preview-container" style="margin-top: 1.5rem; padding: 1.5rem; background: white; border-radius: 8px; box-shadow: var(--shadow); display: none;">
+                                <div style="font-weight: 600; margin-bottom: 1rem;">Vista Previa del Logo:</div>
+                                <img id="logo-preview" src="" alt="Logo Preview" style="max-height: 100px; border-radius: 8px; border: 1px solid var(--border);">
+                                <div style="margin-top: 1rem;">
+                                    <button class="btn btn-primary" onclick="saveLogo()">Guardar Logo</button>
+                                    <button class="btn btn-secondary" onclick="cancelLogoUpload()" style="margin-left: 0.5rem;">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reports Admin Tab -->
+                    <div id="admin-reports" class="admin-tab-content" style="display: none;">
+                        <div class="admin-header">
+                            <h3>Reportes</h3>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button class="btn btn-primary" onclick="showReportModal('sales')">Reporte de Ventas</button>
+                                <button class="btn btn-primary" onclick="generateInventoryReport()">Reporte de Inventario</button>
+                                <button class="btn btn-primary" onclick="generateProductsReport()">Reporte de Productos</button>
+                            </div>
+                        </div>
+                        <div id="admin-reports-list" class="admin-list">
+                            <div class="loading">Cargando reportes...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Report Modal -->
+                    <div id="report-modal" class="modal" style="display: none;">
+                        <div class="modal-content" style="max-width: 600px;">
+                            <div class="modal-header">
+                                <h3 id="report-modal-title">Generar Reporte</h3>
+                                <button class="modal-close" onclick="closeReportModal()">&times;</button>
+                            </div>
+                            <form id="report-form" onsubmit="generateReport(event)">
+                                <div id="report-date-fields">
+                                    <div class="form-group">
+                                        <label>Fecha Inicio *</label>
+                                        <input type="date" id="report-start-date" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Fecha Fin *</label>
+                                        <input type="date" id="report-end-date" required>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="report-type">
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" onclick="closeReportModal()">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary">Generar Reporte</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Report View Modal -->
+                    <div id="report-view-modal" class="modal" style="display: none;">
+                        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                            <div class="modal-header">
+                                <h3 id="report-view-title">Detalle del Reporte</h3>
+                                <button class="modal-close" onclick="closeReportViewModal()">&times;</button>
+                            </div>
+                            <div id="report-view-content" style="padding: 1.5rem;">
+                                <!-- Report content will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Product Modal -->
+                <div id="product-modal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 id="modal-title">Nuevo Producto</h3>
+                            <button class="modal-close" onclick="closeProductModal()">&times;</button>
+                        </div>
+                        <form id="product-form" onsubmit="saveProduct(event)">
+                            <input type="hidden" id="product-id">
+                            <div class="form-group">
+                                <label>Nombre *</label>
+                                <input type="text" id="product-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Descripción *</label>
+                                <textarea id="product-description" rows="3" required></textarea>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Precio *</label>
+                                    <input type="number" id="product-price" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Stock *</label>
+                                    <input type="number" id="product-stock" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Categoría *</label>
+                                    <input type="text" id="product-category" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>SKU *</label>
+                                    <input type="text" id="product-sku" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Imagen del Producto</label>
+                                <input type="file" id="product-image-file" accept="image/*" onchange="previewImage(event)">
+                                <div id="image-preview" style="margin-top: 1rem; display: none;">
+                                    <img id="preview-img" src="" alt="Vista previa" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid #ddd;">
+                                    <button type="button" class="btn btn-secondary" onclick="clearImagePreview()" style="margin-top: 0.5rem; font-size: 0.875rem;">Eliminar imagen</button>
+                                </div>
+                                <div style="margin-top: 0.5rem; font-size: 0.875rem; color: #666;">
+                                    O ingresa una URL de imagen:
+                                </div>
+                                <input type="url" id="product-image" placeholder="https://ejemplo.com/imagen.jpg" style="margin-top: 0.5rem;">
+                            </div>
+                            <div class="modal-actions">
+                                <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+        
+        // Firebase configuration for emulator
+        const firebaseConfig = {
+            projectId: 'vendeloya-2e40d',
+            storageBucket: 'vendeloya-2e40d.appspot.com'
+        };
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const storage = getStorage(app);
+        
+        // Connect to Storage emulator
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            // For emulator, we'll use a workaround with fetch API
+            window.firebaseStorage = {
+                upload: async (file, path) => {
+                    // For emulator, we'll convert to base64 and store URL
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            // In emulator, return a data URL
+                            resolve(reader.result);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                }
+            };
+        } else {
+            window.firebaseStorage = {
+                upload: async (file, path) => {
+                    const storageRef = ref(storage, path);
+                    await uploadBytes(storageRef, file);
+                    return await getDownloadURL(storageRef);
+                }
+            };
+        }
+    </script>
+    <script src="app.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

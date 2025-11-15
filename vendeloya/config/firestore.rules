@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || hasRole('admin'));
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+    
+    // Products collection
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && hasRole('admin');
+    }
+    
+    // Cart collection
+    match /carts/{cartId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || hasRole('admin'));
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null && hasRole('admin');
+    }
+    
+    // Inventory collection
+    match /inventory/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && hasRole('admin');
+    }
+    
+    // Invoices collection
+    match /invoices/{invoiceId} {
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || hasRole('admin'));
+      allow create: if request.auth != null && hasRole('admin');
+    }
+    
+    // Audit logs collection
+    match /audit_logs/{logId} {
+      allow read: if request.auth != null && hasRole('admin');
+      allow create: if request.auth != null;
+    }
+    
+    // Reports collection
+    match /reports/{reportId} {
+      allow read: if request.auth != null && hasRole('admin');
+      allow create: if request.auth != null && hasRole('admin');
+    }
+    
+    // App settings collection
+    match /app_settings/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && hasRole('admin');
+    }
+    
+    // Helper function
+    function hasRole(role) {
+      return request.auth.token.role == role;
+    }
+  }
+}
+

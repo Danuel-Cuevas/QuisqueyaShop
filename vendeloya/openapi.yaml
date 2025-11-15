@@ -1,0 +1,233 @@
+openapi: 3.0.0
+info:
+  title: E-commerce Microservices API
+  version: 1.0.0
+  description: API documentation for E-commerce microservices architecture
+
+servers:
+  - url: http://localhost:5001/ecommerce-demo/us-central1/apiGateway
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+
+  /users/register:
+    post:
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                displayName:
+                  type: string
+      responses:
+        '201':
+          description: User created
+
+  /catalog/products:
+    get:
+      summary: List products
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of products
+
+  /catalog/products/{id}:
+    get:
+      summary: Get product by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product details
+
+  /cart/user/{userId}:
+    get:
+      summary: Get user cart
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cart details
+
+  /cart/user/{userId}/items:
+    post:
+      summary: Add item to cart
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                productId:
+                  type: string
+                quantity:
+                  type: integer
+      responses:
+        '200':
+          description: Item added
+
+  /payments/process:
+    post:
+      summary: Process payment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId:
+                  type: string
+                amount:
+                  type: number
+                currency:
+                  type: string
+                paymentMethod:
+                  type: string
+      responses:
+        '202':
+          description: Payment processing
+
+  /inventory/product/{productId}:
+    get:
+      summary: Get inventory for product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Inventory details
+
+  /billing/generate:
+    post:
+      summary: Generate invoice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId:
+                  type: string
+      responses:
+        '201':
+          description: Invoice generated
+
+  /notifications/send:
+    post:
+      summary: Send notification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                type:
+                  type: string
+                title:
+                  type: string
+                message:
+                  type: string
+      responses:
+        '202':
+          description: Notification sent
+
+  /audit/log:
+    post:
+      summary: Create audit log
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                action:
+                  type: string
+                resource:
+                  type: string
+      responses:
+        '201':
+          description: Log created
+
+  /reports/sales:
+    post:
+      summary: Generate sales report
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startDate:
+                  type: string
+                endDate:
+                  type: string
+      responses:
+        '201':
+          description: Report generated
+
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+

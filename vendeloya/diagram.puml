@@ -1,0 +1,161 @@
+@startuml E-commerce Microservices Architecture
+
+!define RECTANGLE class
+
+package "Firebase Platform" {
+  database Firestore {
+    + Collections
+    + Indexes
+    + Rules
+  }
+  
+  auth FirebaseAuth {
+    + JWT Tokens
+    + Custom Claims
+  }
+  
+  storage FirebaseStorage {
+    + Files
+    + Rules
+  }
+  
+  pubsub PubSub {
+    + Topics
+    + Messages
+  }
+  
+  hosting FirebaseHosting {
+    + Static Files
+    + Rewrites
+  }
+}
+
+package "API Gateway" {
+  component [API Gateway] as Gateway {
+    + /health
+    + /users/*
+    + /catalog/*
+    + /cart/*
+    + /payments/*
+    + /inventory/*
+    + /billing/*
+    + /notifications/*
+    + /audit/*
+    + /reports/*
+  }
+}
+
+package "Microservices" {
+  component [Users Service] as Users {
+    + POST /register
+    + GET /profile/:uid
+    + PUT /profile/:uid
+    + PUT /role/:uid
+    + GET /users
+  }
+  
+  component [Catalog Service] as Catalog {
+    + GET /products
+    + GET /products/:id
+    + POST /products
+    + PUT /products/:id
+    + DELETE /products/:id
+  }
+  
+  component [Cart Service] as Cart {
+    + GET /user/:userId
+    + POST /user/:userId/items
+    + PUT /user/:userId/items/:productId
+    + DELETE /user/:userId/items/:productId
+  }
+  
+  component [Orders Service] as Orders {
+    + POST /create
+    + GET /:orderId
+    + GET /user/:userId
+    + PUT /:orderId/status
+  }
+  
+  component [Payments Service] as Payments {
+    + POST /process
+    + GET /:paymentId
+    + GET /order/:orderId
+    + POST /:paymentId/refund
+  }
+  
+  component [Inventory Service] as Inventory {
+    + GET /product/:productId
+    + GET /products
+    + PUT /product/:productId
+    + POST /reserve
+    + POST /release
+    + POST /consume
+  }
+  
+  component [Billing Service] as Billing {
+    + POST /generate
+    + POST /:invoiceId/issue
+    + POST /:invoiceId/pay
+    + GET /:invoiceId
+  }
+  
+  component [Notifications Service] as Notifications {
+    + POST /send
+    + GET /user/:userId
+    + processNotification()
+    + onOrderCreated()
+  }
+  
+  component [Audit Service] as Audit {
+    + POST /log
+    + GET /logs
+    + GET /logs/:logId
+  }
+  
+  component [Reports Service] as Reports {
+    + POST /sales
+    + POST /inventory
+    + POST /products
+    + GET /:reportId
+  }
+}
+
+Gateway --> Users : HTTP
+Gateway --> Catalog : HTTP
+Gateway --> Cart : HTTP
+Gateway --> Orders : HTTP
+Gateway --> Payments : HTTP
+Gateway --> Inventory : HTTP
+Gateway --> Billing : HTTP
+Gateway --> Notifications : HTTP
+Gateway --> Audit : HTTP
+Gateway --> Reports : HTTP
+
+Users --> Firestore : Read/Write
+Users --> FirebaseAuth : Manage Users
+
+Catalog --> Firestore : Read/Write
+
+Cart --> Firestore : Read/Write
+
+Orders --> Firestore : Read/Write
+
+Payments --> Firestore : Read/Write
+Payments --> PubSub : Publish
+
+Inventory --> Firestore : Read/Write
+
+Billing --> Firestore : Read/Write
+
+Notifications --> Firestore : Read/Write
+Notifications --> PubSub : Publish/Subscribe
+Notifications --> Firestore : Trigger
+
+Audit --> Firestore : Write
+
+Reports --> Firestore : Read
+
+Firestore --> FirebaseAuth : Validate Tokens
+
+@enduml
+

@@ -1,0 +1,101 @@
+{
+  "functions": [
+    {
+      "source": "api-gateway",
+      "codebase": "api-gateway",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/users-service",
+      "codebase": "users-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/catalog-service",
+      "codebase": "catalog-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/cart-service",
+      "codebase": "cart-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/orders-service",
+      "codebase": "orders-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/payments-service",
+      "codebase": "payments-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/inventory-service",
+      "codebase": "inventory-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/billing-service",
+      "codebase": "billing-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/notifications-service",
+      "codebase": "notifications-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/audit-service",
+      "codebase": "audit-service",
+      "runtime": "nodejs18"
+    },
+    {
+      "source": "components/reports-service",
+      "codebase": "reports-service",
+      "runtime": "nodejs18"
+    }
+  ],
+  "firestore": {
+    "rules": "config/firestore.rules",
+    "indexes": "config/firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "config/storage.rules"
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "storage": {
+      "port": 9199
+    },
+    "pubsub": {
+      "port": 8086
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
+  }
+}

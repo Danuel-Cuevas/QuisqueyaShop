@@ -1,7 +1,24 @@
-// Configuration
-const API_BASE = 'http://127.0.0.1:5001/vendeloya-2e40d/us-central1/apiGateway';
-const AUTH_BASE = 'http://127.0.0.1:5001/vendeloya-2e40d/us-central1/usersService';
-const FIREBASE_AUTH_URL = 'http://127.0.0.1:9099'; // Firebase Auth Emulator
+// Configuration - Auto-detect environment
+const isLocal = window.location.hostname === 'localhost' || 
+                window.location.hostname === '127.0.0.1' || 
+                window.location.hostname === '' ||
+                (typeof window.isLocalEnv !== 'undefined' && window.isLocalEnv);
+
+// API URLs - Adapt based on environment
+const PROJECT_ID = 'vendeloya-2e40d';
+const REGION = 'us-central1';
+
+const API_BASE = isLocal 
+    ? `http://127.0.0.1:5001/${PROJECT_ID}/${REGION}/apiGateway`
+    : `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/apiGateway`;
+
+const AUTH_BASE = isLocal
+    ? `http://127.0.0.1:5001/${PROJECT_ID}/${REGION}/usersService`
+    : `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/usersService`;
+
+const FIREBASE_AUTH_URL = isLocal 
+    ? 'http://127.0.0.1:9099' 
+    : 'https://identitytoolkit.googleapis.com';
 
 // State
 let currentUser = null;
@@ -135,97 +152,102 @@ async function handleLogin(e) {
     const password = document.getElementById('login-password').value;
 
     try {
-        // First, try to sign in via Firebase Auth Emulator
-        const signInResponse = await fetch(`http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=emulator`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: email,
-                password: password,
-                returnSecureToken: true
-            })
-        });
-
-        if (signInResponse.ok) {
-            const authData = await signInResponse.json();
-            
-            // Get user profile from our service
-            let userProfile = null;
-            try {
-                const profileResponse = await fetch(`${AUTH_BASE}/profile/${authData.localId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${authData.idToken}`
-                    }
-                });
-                
-                if (profileResponse.ok) {
-                    userProfile = await profileResponse.json();
-                }
-            } catch (profileError) {
-                // Using default user data
-            }
-
-            // If profile doesn't exist, create basic one
-            if (!userProfile) {
-                userProfile = {
-                    uid: authData.localId,
-                    email: email,
-                    displayName: email.split('@')[0],
-                    role: 'user'
-                };
-            }
-
-            // Store auth data
-            authToken = authData.idToken;
-            currentUser = {
-                uid: authData.localId,
-                email: email,
-                displayName: userProfile.displayName || email.split('@')[0],
-                role: userProfile.role || 'user'
-            };
-            
-            // Also check custom claims from token
-            if (authData.idToken) {
-                try {
-                    const tokenParts = authData.idToken.split('.');
-                    if (tokenParts.length === 3) {
-                        const payload = JSON.parse(atob(tokenParts[1]));
-                        if (payload.role) {
-                            currentUser.role = payload.role;
-                        }
-                    }
-                } catch (e) {
-                    // Could not decode token claims
-                }
-            }
-            
-            localStorage.setItem('authToken', authToken);
-            localStorage.setItem('user', JSON.stringify(currentUser));
-            
-            updateAuthUI();
-            showToast('Sesión iniciada correctamente', 'success');
-            hideLogin();
-            loadCart();
-            loadOrders();
-        } else {
-            const errorData = await signInResponse.json().catch(() => ({ error: { message: 'Error desconocido' } }));
-            const errorMessage = errorData.error?.message || 'Email o contraseña incorrectos';
-            
-            if (errorMessage.includes('EMAIL_NOT_FOUND')) {
-                showToast('Usuario no encontrado. Por favor regístrate primero.', 'error');
-            } else if (errorMessage.includes('INVALID_PASSWORD')) {
-                showToast('Contraseña incorrecta', 'error');
-            } else {
-                showToast(errorMessage, 'error');
-            }
+        // Use Firebase Auth SDK
+        const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        const auth = window.firebaseAuth;
+        
+        if (!auth) {
+            throw new Error('Firebase Auth no está inicializado');
         }
+
+        // Sign in with email and password
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+        
+        // Get ID token
+        const idToken = await firebaseUser.getIdToken();
+        
+        // Get user profile from our service
+        let userProfile = null;
+        try {
+            const profileResponse = await fetch(`${AUTH_BASE}/profile/${firebaseUser.uid}`, {
+                headers: {
+                    'Authorization': `Bearer ${idToken}`
+                }
+            });
+            
+            if (profileResponse.ok) {
+                userProfile = await profileResponse.json();
+            }
+        } catch (profileError) {
+            console.warn('Could not fetch user profile:', profileError);
+        }
+
+        // If profile doesn't exist, create basic one
+        if (!userProfile) {
+            userProfile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || email.split('@')[0],
+                role: 'user'
+            };
+        }
+
+        // Get custom claims from token
+        const tokenResult = await firebaseUser.getIdTokenResult();
+        const role = tokenResult.claims.role || userProfile.role || 'user';
+
+        // Store auth data
+        authToken = idToken;
+        currentUser = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: userProfile.displayName || firebaseUser.displayName || email.split('@')[0],
+            role: role,
+            photoURL: firebaseUser.photoURL
+        };
+        
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('user', JSON.stringify(currentUser));
+        
+        updateAuthUI();
+        showToast('Sesión iniciada correctamente', 'success');
+        hideLogin();
+        loadCart();
+        loadOrders();
     } catch (error) {
         console.error('Login error:', error);
-        showToast('Error al iniciar sesión: ' + error.message, 'error');
+        let errorMessage = 'Error al iniciar sesión';
+        
+        if (error.code === 'auth/user-not-found') {
+            errorMessage = 'Usuario no encontrado. Por favor regístrate primero.';
+        } else if (error.code === 'auth/wrong-password') {
+            errorMessage = 'Contraseña incorrecta';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Email inválido';
+        } else if (error.code === 'auth/user-disabled') {
+            errorMessage = 'Usuario deshabilitado';
+        } else if (error.code === 'auth/network-request-failed') {
+            errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        showToast(errorMessage, 'error');
     }
 }
 
-function logout() {
+async function logout() {
+    // Sign out from Firebase Auth if available
+    if (window.firebaseAuth) {
+        try {
+            const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            await signOut(window.firebaseAuth);
+        } catch (error) {
+            console.warn('Error signing out from Firebase:', error);
+        }
+    }
+    
     // Clear all user data from memory
     currentUser = null;
     authToken = null;

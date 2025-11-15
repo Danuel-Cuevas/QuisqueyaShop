@@ -20,7 +20,7 @@ La solución está compuesta por 10 microservicios:
 
 ## Stack Tecnológico
 
-- **Runtime**: Node.js 18+
+- **Runtime**: Node.js 20+
 - **Language**: TypeScript
 - **Platform**: Firebase (Cloud Functions v2, Firestore, Auth, Storage, Pub/Sub, Hosting)
 - **Testing**: Jest
@@ -28,7 +28,7 @@ La solución está compuesta por 10 microservicios:
 
 ## Requisitos Previos
 
-- Node.js 18 o superior
+- Node.js 20 o superior
 - npm o yarn
 - Firebase CLI (`npm install -g firebase-tools`)
 - Cuenta de Firebase (para producción) o usar emuladores locales
@@ -60,23 +60,30 @@ npm run build
 1. Iniciar los emuladores:
 ```bash
 npm start
-# O usar el script
-./scripts/start.sh
+# O usar el script automatizado (Windows)
+npm run start:local
 ```
 
 2. Los servicios estarán disponibles en:
-   - API Gateway: `http://localhost:5001/ecommerce-demo/us-central1/apiGateway`
+   - API Gateway: `http://127.0.0.1:5001/vendeloya-2e40d/us-central1/apiGateway`
+   - Frontend: `http://localhost:5000` (Firebase Hosting Emulator)
    - Firebase UI: `http://localhost:4000`
    - Firestore: `localhost:8080`
    - Auth: `localhost:9099`
 
-### Seed Data
+### Crear Usuario Administrador
 
-Para poblar la base de datos con datos de ejemplo:
+Para crear un usuario administrador en el emulador local:
 
 ```bash
-npx ts-node scripts/seed.ts
+npm run create-admin
+# O con credenciales personalizadas:
+node scripts/create-admin.js admin@example.com admin123 "Administrador"
 ```
+
+**Credenciales por defecto:**
+- Email: `admin@vendeloya.com`
+- Contraseña: `admin123`
 
 ## Estructura del Proyecto
 
@@ -99,10 +106,9 @@ npx ts-node scripts/seed.ts
 │   ├── firestore.indexes.json
 │   └── storage.rules
 ├── scripts/              # Scripts de utilidad
-│   ├── build-all.sh
-│   ├── start.sh
-│   ├── stop.sh
-│   └── seed.ts
+│   ├── build-all.sh      # Script para construir todos los servicios
+│   ├── start-local.ps1   # Script para iniciar emuladores (Windows)
+│   └── create-admin.js   # Script para crear usuario administrador
 ├── diagram.puml          # Diagrama de componentes
 ├── openapi.yaml          # Especificación OpenAPI
 ├── firebase.json         # Configuración Firebase
@@ -126,7 +132,7 @@ La autenticación se realiza mediante Firebase Auth con JWT tokens.
 
 ### Registrar usuario:
 ```bash
-curl -X POST http://localhost:5001/ecommerce-demo/us-central1/usersService/register \
+curl -X POST http://127.0.0.1:5001/vendeloya-2e40d/us-central1/usersService/register \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"password123","displayName":"John Doe"}'
 ```
@@ -134,7 +140,7 @@ curl -X POST http://localhost:5001/ecommerce-demo/us-central1/usersService/regis
 ### Usar token en requests:
 ```bash
 curl -H "Authorization: Bearer <token>" \
-  http://localhost:5001/ecommerce-demo/us-central1/apiGateway/cart/user/USER_ID
+  http://127.0.0.1:5001/vendeloya-2e40d/us-central1/apiGateway/cart/user/USER_ID
 ```
 
 ## Testing

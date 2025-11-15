@@ -49,34 +49,49 @@ npm install
 3. Construir todos los servicios:
 ```bash
 npm run build
-# O usar el script
-./scripts/build-all.sh
 ```
 
-## Ejecución Local
+## Inicio Rápido
 
-### Usando Firebase Emulators
+### Opción 1: Inicio Automático (Recomendado)
 
-1. Iniciar los emuladores:
 ```bash
+npm run start:local
+```
+
+Este comando verifica todo, limpia puertos, construye servicios e inicia emuladores.
+
+### Opción 2: Inicio Manual
+
+```bash
+# 1. Detener procesos anteriores (si es necesario)
+npm run stop
+
+# 2. Construir servicios
+npm run build
+
+# 3. Iniciar emuladores
 npm start
-# O usar el script
-./scripts/start.sh
+
+# 4. En otra terminal, poblar base de datos
+npm run seed
 ```
 
-2. Los servicios estarán disponibles en:
-   - API Gateway: `http://localhost:5001/ecommerce-demo/us-central1/apiGateway`
-   - Firebase UI: `http://localhost:4000`
-   - Firestore: `localhost:8080`
-   - Auth: `localhost:9099`
+### URLs Importantes
 
-### Seed Data
+- **Aplicación**: http://localhost:5000
+- **Firebase UI**: http://localhost:4000
+- **API Gateway**: http://localhost:5001/vendeloya-2e40d/us-central1/apiGateway
 
-Para poblar la base de datos con datos de ejemplo:
+### Credenciales de Prueba
 
-```bash
-npx ts-node scripts/seed.ts
-```
+**Admin:**
+- Email: `admin@vendeloya.com`
+- Password: `admin123`
+
+**Usuario:**
+- Email: `danuel@vendeloya.com`
+- Password: `test123`
 
 ## Estructura del Proyecto
 
@@ -100,9 +115,10 @@ npx ts-node scripts/seed.ts
 │   └── storage.rules
 ├── scripts/              # Scripts de utilidad
 │   ├── build-all.sh
-│   ├── start.sh
-│   ├── stop.sh
-│   └── seed.ts
+│   ├── start-local.ps1
+│   ├── stop.ps1
+│   ├── seed-database.js
+│   └── check-products.js
 ├── diagram.puml          # Diagrama de componentes
 ├── openapi.yaml          # Especificación OpenAPI
 ├── firebase.json         # Configuración Firebase
@@ -205,8 +221,12 @@ plantuml diagram.puml
 
 ## Scripts Disponibles
 
+- `npm run start:local` - Inicio automático completo (recomendado)
+- `npm start` - Iniciar emuladores de Firebase
+- `npm run stop` - Detener emuladores
 - `npm run build` - Construir todos los servicios
-- `npm start` - Iniciar emuladores
+- `npm run seed` - Poblar base de datos con usuarios y productos
+- `npm run check-products` - Verificar productos en la base de datos
 - `npm test` - Ejecutar tests
 - `npm run deploy` - Desplegar a Firebase
 

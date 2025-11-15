@@ -359,28 +359,57 @@ function hideLogin() {
 // Products
 async function loadProducts() {
     try {
+        console.log('Loading products from:', `${API_BASE}/catalog/products`);
         const response = await fetch(`${API_BASE}/catalog/products`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const data = await response.json();
-        products = Array.isArray(data) ? data : [];
         
+        console.log('Response status:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error response:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Products data received:', data);
+        console.log('Data type:', typeof data, 'Is array:', Array.isArray(data));
+        
+        // Handle different response formats
+        if (Array.isArray(data)) {
+            products = data;
+        } else if (data && Array.isArray(data.products)) {
+            products = data.products;
+        } else if (data && Array.isArray(data.data)) {
+            products = data.data;
+        } else if (data && typeof data === 'object') {
+            // If it's a single product object, wrap it in an array
+            products = [data];
+        } else {
+            products = [];
+        }
+        
+        console.log('Final products array:', products);
+        console.log('Products count:', products.length);
+        
+        // Only show toast if array is truly empty (not just loading)
         if (products.length === 0) {
-            // Database is empty - show message but don't show sample products
             renderProducts();
-            showToast('No hay productos en la base de datos. Inicia sesión como admin para crear productos.', 'error');
+            // Don't show error toast for empty state - just render empty message
             return;
         }
         
         renderProducts();
-        // Products loaded successfully
+        console.log('Products rendered successfully');
     } catch (error) {
         console.error('Error loading products:', error);
-        // Don't show sample products - show error message instead
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         products = [];
         renderProducts();
-        showToast('Error al cargar productos. Verifica que los emuladores estén corriendo.', 'error');
+        showToast('Error al cargar productos: ' + error.message, 'error');
     }
 }
 
@@ -433,8 +462,16 @@ async function createSampleProducts() {
 function renderProducts() {
     const grid = document.getElementById('products-grid');
     
+    if (!grid) {
+        console.warn('Products grid element not found');
+        return;
+    }
+    
     if (!products || products.length === 0) {
-        grid.innerHTML = '<div class="empty-state">No hay productos disponibles. Inicia sesión como admin para crear productos.</div>';
+        const emptyMessage = currentUser && currentUser.role === 'admin'
+            ? '<div class="empty-state">No hay productos disponibles. <button class="btn btn-primary" onclick="showProductModal()" style="margin-top: 1rem;">Crear Producto</button></div>'
+            : '<div class="empty-state">No hay productos disponibles en este momento.</div>';
+        grid.innerHTML = emptyMessage;
         return;
     }
     
